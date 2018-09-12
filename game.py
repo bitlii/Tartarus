@@ -78,6 +78,7 @@ class Game(arcade.Window):
         self.enemy_list = arcade.SpriteList()
 
         self.lifepoints = 5
+        self.score = 0
 
         # Player Sprite - PLACEHOLDER
         self.player_sprite = arcade.Sprite("images/playerShip1_blue.png", SPRITE_SCALING_PLAYER)
@@ -133,6 +134,8 @@ class Game(arcade.Window):
         if key == arcade.key.SPACE and self.screen_view == 2:
             self.setup()
             self.screen_view = 1
+        if key == arcade.key.ESCAPE and self.screen_view == 2:
+            arcade.close_window()
 
     def on_key_release(self, key, modifiers):
         if key == arcade.key.LEFT:
@@ -161,11 +164,15 @@ class Game(arcade.Window):
 
             self.enemy_list.update()
             self.bullet_list.update()
+
+            # If player hits the edge of the screen
+            if self.player_sprite.left < 0:
+                self.player_sprite.left = 0
+            elif self.player_sprite.right > SCREEN_WIDTH - 1:
+                self.player_sprite.right = SCREEN_WIDTH
+
             # Update Player Position
             self.player_sprite.center_x += self.player_dx
-            # If player hits the edge of the screen
-            if self.player_sprite.center_x == SCREEN_WIDTH or self.player_sprite.center_x == 0:
-                self.player_dx = 0
 
             for b in self.bullet_list:
                 hit_list = arcade.check_for_collision_with_list(b, self.enemy_list)
@@ -200,7 +207,8 @@ class Game(arcade.Window):
     # Lose Screen
     def lose_screen(self):
         # Main text
-        arcade.draw_text(("YOU LOSE"), SCREEN_WIDTH / 2, 415, arcade.color.BLACK, 77, align="center", anchor_x="center", anchor_y="center")
+        arcade.draw_text(("YOU LOSE"), SCREEN_WIDTH / 2, 445, arcade.color.BLACK, 77, align="center", anchor_x="center", anchor_y="center")
+        arcade.draw_text((f"SCORE: {self.score}"), SCREEN_WIDTH / 2, 380, arcade.color.WHITE, 25, align="center", anchor_x="center", anchor_y="center")
         # Play Again Button
         arcade.draw_rectangle_filled(SCREEN_WIDTH / 2, 310, 400, 100, arcade.color.GREEN)
         arcade.draw_text(("Space to Play Again"), SCREEN_WIDTH / 2, 310, arcade.color.WHITE, 25, align="center", anchor_x="center", anchor_y="center")
