@@ -14,6 +14,7 @@ SCREEN_HEIGHT = 600
 # SPRITE SCALING
 SPRITE_SCALING_PLAYER = 0.5
 SPRITE_SCALING_BULLET = 0.5
+SPRITE_SCALING_ENEMY = 0.8
 
 SPRITE_SCALING_COIN = 0.5
 
@@ -23,7 +24,7 @@ BULLET_SPEED = 15
 MOVEMENT_SPEED = 10
 
 # SOUND EFFECTS
-PLAYER_GUN_SOUND = arcade.load_sound("sfx/sfx_laser.ogg")
+PLAYER_GUN_SOUND = arcade.load_sound("sound/sfx_laser.ogg")
 
 
 class Enemy(arcade.Sprite):
@@ -65,20 +66,22 @@ class Game(arcade.Window):
         self.lifepoints = 5
         self.score = 0
         self.player_dx = 0
+        self.wave = 0
 
         self.screen_view = 1
 
         self.set_mouse_visible(False)
-        # Background - PLACEHOLDER
-        arcade.set_background_color(arcade.color.AMAZON)
+        self.background = None
 
     def setup(self):
         self.player_list = arcade.SpriteList()
         self.bullet_list = arcade.SpriteList()
         self.enemy_list = arcade.SpriteList()
+        self.background = arcade.load_texture("images/bg_ground.png")
 
         self.lifepoints = 5
         self.score = 0
+        self.wave = 0
 
         # Player Sprite - PLACEHOLDER
         self.player_sprite = arcade.Sprite("images/playerShip1_blue.png", SPRITE_SCALING_PLAYER)
@@ -89,6 +92,9 @@ class Game(arcade.Window):
     def on_draw(self):
         arcade.start_render()
 
+        # Background
+        arcade.draw_texture_rectangle(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2, SCREEN_WIDTH, SCREEN_HEIGHT, self.background)
+
         # Start screen
         if self.screen_view == 1:
             self.start_screen()
@@ -97,6 +103,7 @@ class Game(arcade.Window):
             self.lose_screen()
         # Game screen
         elif self.screen_view == 0:
+
             self.player_list.draw()
             self.bullet_list.draw()
             self.enemy_list.draw()
@@ -107,23 +114,27 @@ class Game(arcade.Window):
             # Lifepoints
             lifepoints_text = f"Life {self.lifepoints}"
             arcade.draw_text(lifepoints_text, 10, 40, arcade.color.WHITE, 12)
+            # Wave
+            wave_text = f"Wave {self.wave}"
+            arcade.draw_text(wave_text, 10, 60, arcade.color.WHITE, 12)
 
     def on_key_press(self, key, mod):
         # GAME SCREEN
-        # Movement
-        if key == arcade.key.LEFT:
-            self.player_dx = -MOVEMENT_SPEED
-        if key == arcade.key.RIGHT:
-            self.player_dx = MOVEMENT_SPEED
+        if self.screen_view == 0:
+            # Movement
+            if key == arcade.key.LEFT:
+                self.player_dx = -MOVEMENT_SPEED
+            if key == arcade.key.RIGHT:
+                self.player_dx = MOVEMENT_SPEED
 
-        # Shoot Bullets
-        if key == arcade.key.SPACE and self.screen_view == 0:
-            bullet = Bullet("images/laserBlue01.png", SPRITE_SCALING_BULLET)
-            bullet.center_x = self.player_sprite.center_x
-            bullet.bottom = self.player_sprite.top
+            # Shoot Bullets
+            if key == arcade.key.SPACE:
+                bullet = Bullet("images/laserBlue01.png", SPRITE_SCALING_BULLET)
+                bullet.center_x = self.player_sprite.center_x
+                bullet.bottom = self.player_sprite.top
 
-            self.bullet_list.append(bullet)
-            arcade.play_sound(PLAYER_GUN_SOUND)
+                self.bullet_list.append(bullet)
+                arcade.play_sound(PLAYER_GUN_SOUND)
 
         # START SCREEN
         if key == arcade.key.SPACE and self.screen_view == 1:
@@ -131,35 +142,47 @@ class Game(arcade.Window):
             self.screen_view = 0
 
         # LOSE SCREEN
-        if key == arcade.key.SPACE and self.screen_view == 2:
-            self.setup()
-            self.screen_view = 1
-        if key == arcade.key.ESCAPE and self.screen_view == 2:
-            arcade.close_window()
+        if self.screen_view == 2:
+            # Restart
+            if key == arcade.key.ENTER:
+                self.setup()
+                self.screen_view = 1
+            # Lose
+            if key == arcade.key.ESCAPE:
+                arcade.close_window()
 
     def on_key_release(self, key, modifiers):
-        if key == arcade.key.LEFT:
-            if self.player_dx > 0:
-                pass
-            else:
-                self.player_dx = 0
-        if key == arcade.key.RIGHT:
-            if self.player_dx < 0:
-                pass
-            else:
-                self.player_dx = 0
+        # GAME SCREEN
+        if self.screen_view == 0:
+            # Move left
+            if key == arcade.key.LEFT:
+                # If player has pressed the right key before releasing left key - keeps going right
+                if self.player_dx > 0:
+                    pass
+                else:
+                    self.player_dx = 0
+            # Move right
+            if key == arcade.key.RIGHT:
+                # If player has pressed the left key before releasing right key - keeps going left
+                if self.player_dx < 0:
+                    pass
+                else:
+                    self.player_dx = 0
 
     def update(self, delta_time):
-        if self.lifepoints > 0 and self.screen_view == 0:
+        # If the player still has lives remaining and the screen is on the game screen
+        if self.screen_view == 0:
             if len(self.enemy_list) == 0:
+                # Increase wave
+                self.wave += 1
                 # Enemy Spawning
-                enemy_count = random.randrange(3, 12)
+                enemy_count = random.randrange(self.wave, (self.wave + 4))
                 for i in range(enemy_count):
-                    enemy = Enemy("images/spider.png", SPRITE_SCALING_PLAYER)
+                    enemy = Enemy("images/spider.png", SPRITE_SCALING_ENEMY)
                     enemy.center_x = random.randrange(SCREEN_WIDTH)
                     enemy.center_y = SCREEN_HEIGHT + enemy.height
                     enemy.change_x = random.randrange(-3, 4)
-                    enemy.change_y = random.randrange(-4, -1)
+                    enemy.change_y = random.randrange(-3, -1)
                     self.enemy_list.append(enemy)
 
             self.enemy_list.update()
@@ -174,26 +197,26 @@ class Game(arcade.Window):
             # Update Player Position
             self.player_sprite.center_x += self.player_dx
 
+            # Checks if any bullets does something
             for b in self.bullet_list:
                 hit_list = arcade.check_for_collision_with_list(b, self.enemy_list)
-
+                # If bullet goes above window, remove.
                 if b.bottom > SCREEN_HEIGHT:
                     b.kill()
-
+                # If bullet hits enemy, remove.
                 if len(hit_list) > 0:
                     b.kill()
-
+                # Remove the enemy hit.
                 for e in hit_list:
                     e.kill()
                     self.score += 1
-
+            # If the enemy moves below window, remove. Player loses life.
             for e in self.enemy_list:
                 if e.top < 0:
                     self.lifepoints -= 1
                     e.kill()
-        elif self.screen_view == 1:
-            pass
-        else:
+
+        if self.lifepoints <= 0:
             self.screen_view = 2
 
     # SCREENS
@@ -207,11 +230,11 @@ class Game(arcade.Window):
     # Lose Screen
     def lose_screen(self):
         # Main text
-        arcade.draw_text(("YOU LOSE"), SCREEN_WIDTH / 2, 445, arcade.color.BLACK, 77, align="center", anchor_x="center", anchor_y="center")
+        arcade.draw_text(("YOU LOSE"), SCREEN_WIDTH / 2, 445, arcade.color.WHITE, 77, align="center", anchor_x="center", anchor_y="center")
         arcade.draw_text((f"SCORE: {self.score}"), SCREEN_WIDTH / 2, 380, arcade.color.WHITE, 25, align="center", anchor_x="center", anchor_y="center")
         # Play Again Button
         arcade.draw_rectangle_filled(SCREEN_WIDTH / 2, 310, 400, 100, arcade.color.GREEN)
-        arcade.draw_text(("Space to Play Again"), SCREEN_WIDTH / 2, 310, arcade.color.WHITE, 25, align="center", anchor_x="center", anchor_y="center")
+        arcade.draw_text(("Enter to Play Again"), SCREEN_WIDTH / 2, 310, arcade.color.WHITE, 25, align="center", anchor_x="center", anchor_y="center")
         # Quit Button
         arcade.draw_rectangle_filled(SCREEN_WIDTH / 2, 205, 400, 100, arcade.color.RED)
         arcade.draw_text(("Escape to Quit"), SCREEN_WIDTH / 2, 205, arcade.color.WHITE, 25, align="center", anchor_x="center", anchor_y="center")
